@@ -124,7 +124,7 @@ def extract_equipment(messages):
         chunk = messages[i:i+chunk_size]
         text = "\n".join(f"[{m['date']} {m['time']}] {m['sender']}: {m['text']}" for m in chunk)
         resp = client.messages.create(
-            model="claude-opus-4-5",
+            model="claude-haiku-4-5-20251001",
             max_tokens=4000,
             system=SYSTEM,
             messages=[{"role": "user", "content": f"Extract from:\n\n{text}"}]
