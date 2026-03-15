@@ -65,7 +65,7 @@ Only confirmed placements (not requests). Return JSON array only:
         text = "\n".join(f"[{m['date']} {m['time']}] {m['sender']}: {m['text']}" for m in chunk)
         try:
             resp = client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-3-haiku-20240307",
                 max_tokens=4000,
                 system=SYSTEM,
                 messages=[{"role":"user","content":f"Extract:\n\n{text}"}]
