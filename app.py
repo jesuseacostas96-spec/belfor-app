@@ -116,7 +116,7 @@ Rules:
 """
 
 def extract_equipment(messages):
-    client = anthropic.Anthropic(api_key=st.secrets.get("ANTHROPIC_API_KEY", "")
+    client = anthropic.Anthropic(api_key=st.secrets.get("ANTHROPIC_API_KEY", ""))
                                  if not api_key:
     st.error("API key not found in secrets")
     st.stop()
