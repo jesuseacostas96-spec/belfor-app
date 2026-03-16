@@ -88,12 +88,43 @@ Rules:
     consolidated = OrderedDict()
     for r in all_results:
         action = r.get("action","placed")
-        key = (r.get("date",""), r.get("unit",""), action)
+        unit   = normalize_unit(r.get("unit",""))
+        key = (r.get("date",""), unit, action)
         if key not in consolidated:
-            consolidated[key] = {"date":r["date"],"unit":r["unit"],"action":action,"ams":[],"dhs":[]}
+            consolidated[key] = {"date":r["date"],"unit":unit,"action":action,"ams":[],"dhs":[]}
         consolidated[key]["ams"].extend(r.get("ams",[]))
         consolidated[key]["dhs"].extend(r.get("dhs",[]))
     return list(consolidated.values())
+
+def normalize_unit(unit):
+    """Normalize unit/hallway names to standard format"""
+    u = unit.strip()
+    ul = u.lower()
+    # Map floor numbers to standard names
+    floor_map = {
+        '1':'1st','2':'2nd','3':'3rd','4':'4th',
+        '5':'5th','6':'6th','7':'7th','8':'8th','9':'9th'
+    }
+    # Already standard: "Hallway 7th Floor", "Unit 702"
+    if re.match(r'(hallway|unit)\s+', ul):
+        # Fix "hallway 4 floor" or "hallway 5 floor" -> "Hallway 4th Floor"
+        m = re.match(r'hallway\s+(\d+)\s*(st|nd|rd|th)?\s*floor', ul)
+        if m:
+            n = m.group(1)
+            suffix = floor_map.get(n, n+"th")
+            return f"Hallway {suffix} Floor"
+        # Fix "hallway 4th floor" -> "Hallway 4th Floor"
+        m = re.match(r'hallway\s+(\d+(?:st|nd|rd|th))\s*floor', ul)
+        if m:
+            return f"Hallway {m.group(1).capitalize()} Floor"
+        return u
+    # "4 floor hallway", "floor 4 hallway", "4th floor hallway"
+    m = re.search(r'(\d+)\s*(st|nd|rd|th)?\s*floor', ul)
+    if m and ('hall' in ul or 'corridor' in ul or 'pasillo' in ul):
+        n = m.group(1)
+        suffix = floor_map.get(n, n+"th")
+        return f"Hallway {suffix} Floor"
+    return u
 
 def get_floor(unit):
     u = unit.lower()
