@@ -99,6 +99,8 @@ def get_floor(unit):
     u = unit.lower()
     for k,v in [("7th",7),("6th",6),("5th",5),("4th",4),("3rd",3),("2nd",2),("1st",1)]:
         if k in u: return v
+    m = re.search(r"(\d+)\s*(?:st|nd|rd|th)?\s*floor", u)
+    if m: return int(m.group(1))
     try: return int(''.join(filter(str.isdigit,unit))) // 100
     except: return 0
 
