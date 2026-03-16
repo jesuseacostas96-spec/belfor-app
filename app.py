@@ -154,11 +154,11 @@ def build_excel(equipment, job_name, job_number):
 date_cols = [9, 11, 13, 15, 17, 19, 21]
 date_col_map = {}
 for di, d in enumerate(all_dates[:7]):
-    col = date_cols[di]
-    ws.cell(row=10, column=col).value = d
-    ws.cell(row=11, column=col).value = None
-    ws.cell(row=12, column=col).value = None
-    date_col_map[d] = col
+        col = date_cols[di]
+        ws.cell(row=10, column=col).value = d
+        ws.cell(row=11, column=col).value = None
+        ws.cell(row=12, column=col).value = None
+        date_col_map[d] = col
 
         # Build rows: placed first, then removed (for this floor)
         placed  = sorted(floors_placed.get(floor_num, []),  key=lambda x: sort_unit(x["unit"]))
