@@ -71,6 +71,10 @@ For REMOVED equipment (words like: removed, pulled, saqué, recogí, out, pickup
 Rules:
 - Only confirmed actions, not requests or assessments
 - action must be exactly "placed" or "removed"
+- Unit format: ALWAYS use "Unit XXX" (e.g. "Unit 602", "Unit 437"). Never bare numbers.
+- Hallway format: ALWAYS use "Hallway Nth Floor" (e.g. "Hallway 7th Floor", "Hallway 2nd Floor")
+- SKIP non-standard rooms: telecom room, electrical room, storage room, mechanical room, stairwell
+- If a message has no clear unit or hallway, skip it
 - Return ONLY a valid JSON array, no explanation, no markdown"""
 
     all_results = []
@@ -94,7 +98,9 @@ Rules:
     for r in all_results:
         action = r.get("action","placed")
         unit   = normalize_unit(r.get("unit",""))
-        key    = (r.get("date",""), unit, action)
+        if not unit:          # skip None (non-standard rooms) and empty strings
+            continue
+        key = (r.get("date",""), unit, action)
         if key not in consolidated:
             consolidated[key] = {"date":r["date"],"unit":unit,"action":action,"ams":[],"dhs":[]}
         consolidated[key]["ams"].extend(r.get("ams",[]))
@@ -102,7 +108,7 @@ Rules:
     return list(consolidated.values())
 
 def normalize_unit(unit):
-    """Normalize unit/hallway names to standard format"""
+    """Normalize unit/hallway names to standard format. Returns None to skip non-standard rooms."""
     u  = unit.strip()
     ul = u.lower()
 
@@ -111,23 +117,41 @@ def normalize_unit(unit):
         '5':'5th','6':'6th','7':'7th','8':'8th','9':'9th'
     }
 
-    if re.match(r'(hallway|unit)\s+', ul):
-        m = re.match(r'hallway\s+(\d+)\s*(st|nd|rd|th)?\s*floor', ul)
+    # Skip non-standard rooms (telecom, electrical, storage, etc.) → prevent Floor 0
+    skip_keywords = ['telecom', 'electrical room', 'storage room', 'mechanical',
+                     'stairwell', 'lobby', 'laundry room', 'main office']
+    if any(k in ul for k in skip_keywords):
+        return None
+
+    # ── Hallway normalization ──────────────────────────────────────────
+    # Covers: "7th floor hallway", "hallway 7 floor", "Hallway 7th Floor",
+    #         "6th floor hallway", "hallway 6th", "5th Floor Hallway", etc.
+    if any(k in ul for k in ['hall', 'corridor', 'pasillo']):
+        m = re.search(r'(\d+)\s*(st|nd|rd|th)?\s*floor', ul)
         if m:
             n = m.group(1)
-            suffix = floor_map.get(n, n+"th")
+            suffix = floor_map.get(n, n + "th")
             return f"Hallway {suffix} Floor"
-        m = re.match(r'hallway\s+(\d+(?:st|nd|rd|th))\s*floor', ul)
+        # "hallway 6th" without "floor"
+        m = re.search(r'(\d+(?:st|nd|rd|th))', ul)
         if m:
-            return f"Hallway {m.group(1).capitalize()} Floor"
-        return u
+            raw = m.group(1)
+            digit = re.search(r'\d+', raw).group()
+            suffix = floor_map.get(digit, digit + "th")
+            return f"Hallway {suffix} Floor"
 
-    m = re.search(r'(\d+)\s*(st|nd|rd|th)?\s*floor', ul)
-    if m and ('hall' in ul or 'corridor' in ul or 'pasillo' in ul):
-        n = m.group(1)
-        suffix = floor_map.get(n, n+"th")
-        return f"Hallway {suffix} Floor"
-    return u
+    # ── Unit normalization ─────────────────────────────────────────────
+    # Covers: "Unit 602", "unit 602", "602", "Unit: 602", "unit 602 (vacant)",
+    #         "Uni 137" (typo), "unit510", bare "510", etc.
+    m = re.search(r'\b(\d{3,4})\b', u)
+    if m:
+        # Only treat as unit if in a unit context OR it's a bare 3-4 digit number
+        is_unit_context = any(k in ul for k in ['unit', 'uni ', 'apt', 'apartment', '#'])
+        is_bare_number  = bool(re.match(r'^\s*\d{3,4}\s*$', u))
+        if is_unit_context or is_bare_number:
+            return f"Unit {m.group(1)}"
+
+    return u.strip()
 
 def get_floor(unit):
     u = unit.lower()
@@ -135,8 +159,11 @@ def get_floor(unit):
         if k in u: return v
     m = re.search(r"(\d+)\s*(?:st|nd|rd|th)?\s*floor", u)
     if m: return int(m.group(1))
-    try: return int(''.join(filter(str.isdigit,unit))) // 100
-    except: return 0
+    try:
+        n = int(''.join(filter(str.isdigit, unit))) // 100
+        return n if n > 0 else 1   # never return floor 0
+    except:
+        return 1                   # fallback to floor 1 instead of 0
 
 FLOOR_LABELS = {7:"7th Floor",6:"6th Floor",5:"5th Floor",4:"4th Floor",
                 3:"3rd Floor",2:"2nd Floor",1:"1st Floor"}
